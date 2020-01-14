@@ -10,8 +10,6 @@ import time
 import os
 import itertools
 
-# TODO Do all my files have the same headers?
-
 URLS = {'availability' : 'https://data.police.uk/api/crimes-street-dates'}
 
 def basic_request_to_df(url):
@@ -37,6 +35,24 @@ class police_api():
 
     def get_available(self, output_file=None):
         """
+        Stop and Search Data are not available for all forces for all months.
+
+        Returns a dataframe showing force and date (month) for which data
+        are available.
+
+        NB: This function is fun when class instantiated and stored in
+        self.available.
+
+        Parameters
+        ----------
+        output_file : str
+            Full file path + extension of file to save dataframe.
+            (Default : None, no file will be saved)
+
+        Returns
+        -------
+        df : dataframe
+            dataframe containing 'force', 'date', and 'type'.
         """
         # Default url and basic json to df
         url = URLS['availability']
@@ -131,44 +147,3 @@ class police_api():
         df['search_force'] = force
         df['search_month'] = month
         return df
-
-
-def temp_download():
-    a = get_stop_and_search_availability()
-
-    files = os.listdir('downloads')#existing files
-
-    for index, row in a.iterrows():
-        month = row['date']
-        forces = row['force_list']
-
-        for force in forces:
-            status = ''
-            done = ''
-            if (month + '_' + force + '.csv') in files:
-                continue
-            print(month, force)
-            time.sleep(0.3)
-            try:
-                done = temp_get_and_save(month, force)
-                status = 'done'
-                print(done)
-            except:
-                status = 'error'
-                done = 'NA'
-                print('error - no file saved')
-            _temp_add_to_log(month, force, done, status)
-            
-
-def _temp_add_to_log(month, force, filename, status):
-    file = 'logs\\stop_and_search.csv'
-    original = pd.read_csv(file)
-    data = {'month': [month],
-            'force': [force],
-            'filename': [filename],
-            'download_status': [status]}
-    df = pd.DataFrame(data)
-    output = original.append(df,sort=False)
-    output.to_csv('logs\\stop_and_search.csv',mode='w',index=False)
-    return
-
