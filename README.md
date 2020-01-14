@@ -1,6 +1,6 @@
 # stop_and_search_api
 
-Foobar is a Python library for dealing with word pluralization.
+stop_and_search_api is a Python module for making API calls to https://data.police.uk to download UK Stop and Search data.
 
 ## Installation
 
@@ -13,7 +13,9 @@ git clone https://github.com/HaeckelK/stop_and_search_api.git
 ## Usage
 
 ```python
-import foobar
+import from police_api import PoliceAPI
+
+police = PoliceAPI()
 
 foobar.pluralize('word') # returns 'words'
 foobar.pluralize('goose') # returns 'geese'
