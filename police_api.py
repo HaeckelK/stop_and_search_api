@@ -8,6 +8,7 @@ import requests
 import pandas as pd
 import time
 import os
+import itertools
 
 # TODO Do all my files have the same headers?
 
@@ -26,31 +27,19 @@ def literal_to_list(x):
 class police_api():
     """
     """
-    def __init__(self):
+    def __init__(self, delay=1, job_batch=10):
+        self.available = self.get_available()
+        self.jobs = pd.DataFrame(columns=['date', 'force', 'status'])
         return
 
-    def available_old(self):
-        """
-        Returns
-        -------
-        df : DataFrame
-            date :
-            force_list : list of forces
-            type : crime data type
-        """
-        url = URLS['availability']
-        response = requests.get(url)
-        df = pd.DataFrame(response.json())
-        df['type'] = 'stop_and_search'
-        df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
-        return df
-
-    def available(self, output_file=None):
+    def get_available(self, output_file=None):
         """
         """
         # Default url and basic json to df
         url = URLS['availability']
         df = basic_request_to_df(url)
+        #df.to_csv('testing\\available_raw.csv', index=False)
+        df = pd.read_csv('testing\\available_raw.csv')
         # Tidy up headers
         df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
         # Reformat to show one force per line
@@ -67,11 +56,47 @@ class police_api():
         for index, row in df.iterrows():
             date = row['date']
             forces = row['force_list']
-            #forces = literal_to_list(forces)
+            forces = literal_to_list(forces)
             temp_df = pd.DataFrame(forces, columns=['force'])
             temp_df['date'] = date
             new_df = new_df.append(temp_df, sort=False)
         return new_df
+
+    def download(self):
+        return
+
+    def add_job(self, dates=None, forces=None):
+        new_jobs = pd.DataFrame(columns=['date', 'force'])
+
+        if dates is None:
+            dates = list(self.available['date'].unique())
+
+        if forces is None:
+            forces = list(self.available['force'].unique())
+
+        if isinstance(dates, list) and isinstance(forces, list):
+            pairs = set(itertools.product(dates, forces))
+            new_jobs = pd.DataFrame(pairs, columns=['date', 'force'])
+
+        # Check that date and force are valid
+        new_jobs['valid_date'] = new_jobs['date'].apply(lambda x: self._valid_date(x))
+        new_jobs['valid_force'] = new_jobs['force'].apply(lambda x: self._valid_date(x))                
+
+        new_jobs['status'] = 'not_done'
+
+        # Add to central jobs list
+        self.jobs = self.jobs.append(new_jobs,
+                                     sort=False)
+        return
+
+    def _valid_date(self, date):
+        return date in self.available['date'].unique()
+
+    def _valid_force(self, force):
+        return force in self.available['force'].unique()
+
+    def _valid(self):
+        return
 
 def get_stop_and_search(month, force):
     url = ('https://data.police.uk/api/stops-force?force=' +
