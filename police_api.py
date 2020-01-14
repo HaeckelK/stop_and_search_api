@@ -13,42 +13,65 @@ import os
 
 URLS = {'availability' : 'https://data.police.uk/api/crimes-street-dates'}
 
-def folder_contents(folder, fullpath=True):
-    """
-    Return a list of contents of a folder.
-
-    Parameters
-    ----------
-    folder : str
-        Full or relative file path to directory.
-    fullpath : bool
-        If True include path with output. If False show content names only.
-
-    Returns
-    -------
-    contents : list
-        List of strings of folder contents.
-    """
-    contents = os.listdir(folder)
-    if fullpath == True:
-        contents = [os.path.join(folder,x) for x in contents]
-    return contents
-
-def get_stop_and_search_availability():
-    """
-    Returns
-    -------
-    df : DataFrame
-        date :
-        force_list : list of forces
-        type : crime data type
-    """
-    url = URLS['availability']
+def basic_request_to_df(url):
+    # TODO : response handling
     response = requests.get(url)
     df = pd.DataFrame(response.json())
-    df['type'] = 'stop_and_search'
-    df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
     return df
+
+def literal_to_list(x):
+    y = x.strip('[]').replace('"', '').replace(' ', '').replace("'", "").split(',')
+    return y
+
+class police_api():
+    """
+    """
+    def __init__(self):
+        return
+
+    def available_old(self):
+        """
+        Returns
+        -------
+        df : DataFrame
+            date :
+            force_list : list of forces
+            type : crime data type
+        """
+        url = URLS['availability']
+        response = requests.get(url)
+        df = pd.DataFrame(response.json())
+        df['type'] = 'stop_and_search'
+        df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
+        return df
+
+    def available(self, output_file=None):
+        """
+        """
+        # Default url and basic json to df
+        url = URLS['availability']
+        df = basic_request_to_df(url)
+        # Tidy up headers
+        df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
+        # Reformat to show one force per line
+        df = self._extract_forces(df)
+        # Note that these are stop_and_search
+        df['type'] = 'stop_and_search'
+        if output_file is not None:
+            df.to_csv(output_file, index=False)
+        return df
+
+    def _extract_forces(self, df):
+        # Forces are in list format - extract into one force per line
+        new_df = pd.DataFrame(columns=['force', 'date'])
+        for index, row in df.iterrows():
+            date = row['date']
+            forces = row['force_list']
+            #forces = literal_to_list(forces)
+            temp_df = pd.DataFrame(forces, columns=['force'])
+            temp_df['date'] = date
+            new_df = new_df.append(temp_df, sort=False)
+        return new_df
 
 def get_stop_and_search(month, force):
     url = ('https://data.police.uk/api/stops-force?force=' +
@@ -210,3 +233,5 @@ def combine_downloads_folder():
     print('Combining files in:', folder)
     temp_combine_files(contents, output_name)
     return
+
+
