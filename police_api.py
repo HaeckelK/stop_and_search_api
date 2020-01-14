@@ -22,7 +22,7 @@ def literal_to_list(x):
     y = x.strip('[]').replace('"', '').replace(' ', '').replace("'", "").split(',')
     return y
 
-class police_api():
+class PoliceAPI():
     """
     """
     def __init__(self, delay=1, job_batch=10, savefolder=''):
