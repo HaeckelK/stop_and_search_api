@@ -1,6 +1,6 @@
 # stop_and_search_api
 
-stop_and_search_api is a Python module for making API calls to https://data.police.uk to download UK Stop and Search data.
+stop_and_search_api is a Python module for making API calls to https://data.police.uk/docs/ to download UK Stop and Search data.
 
 ## Installation
 
@@ -13,7 +13,7 @@ git clone https://github.com/HaeckelK/stop_and_search_api.git
 ## Usage
 
 ```python
-import from police_api import PoliceAPI
+from police_api import PoliceAPI
 
 police = PoliceAPI()
 
