@@ -15,11 +15,10 @@ git clone https://github.com/HaeckelK/stop_and_search_api.git
 ```python
 from police_api import PoliceAPI
 
-police = PoliceAPI()
-
-foobar.pluralize('word') # returns 'words'
-foobar.pluralize('goose') # returns 'geese'
-foobar.singularize('phenomena') # returns 'phenomenon'
+police = PoliceAPI(savefolder='downloads')
+police.add_job(dates=['2019-10'],
+               forces=['cambridgeshire', 'cheshire'])
+police.download()
 ```
 
 ## Contributing
