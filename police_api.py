@@ -85,17 +85,23 @@ class PoliceAPI():
         if delay is None:
             delay = self.default_delay
         savefolder = self.default_savefolder
+        # Create folder if it does not exist
+        if os.path.exists(savefolder) == False:
+            os.mkdir(savefolder)
+            print('\nCreated Folder {}\n'.format(savefolder))
+            
         df = self.jobs.copy()
         for index, row in df.iterrows():
             date, force = row['date'], row['force']
-            print(date, force)
+            print(date, force, end="")
             time.sleep(delay)
-            self._download(date, force, savefolder)
+            filename = self._download(date, force, savefolder)
+            print(filename)
         return
 
     def _download(self, date, force, savefolder):
         filename = self._temp_get_and_save(date, force, savefolder)
-        return
+        return filename
 
     def add_job(self, dates=None, forces=None):
         new_jobs = pd.DataFrame(columns=['date', 'force'])
@@ -112,20 +118,26 @@ class PoliceAPI():
 
         # Check that date and force are valid
         new_jobs['valid_date'] = new_jobs['date'].apply(lambda x: self._valid_date(x))
-        new_jobs['valid_force'] = new_jobs['force'].apply(lambda x: self._valid_date(x))                
+        new_jobs['valid_force'] = new_jobs['force'].apply(lambda x: self._valid_force(x))                
 
         new_jobs['status'] = 'not_done'
 
         # Add to central jobs list
         self.jobs = self.jobs.append(new_jobs,
                                      sort=False)
+
+        # Information to user
+        print('\nJob added')
+        print('Dates', dates)
+        print('Forces', forces)
+        print('Request Count:', len(new_jobs))
         return
 
     def _valid_date(self, date):
-        return date in self.available['date'].unique()
+        return date in self.dates
 
     def _valid_force(self, force):
-        return force in self.available['force'].unique()
+        return force in self.forces
 
     def _valid(self):
         return
@@ -147,3 +159,11 @@ class PoliceAPI():
         df['search_force'] = force
         df['search_month'] = month
         return df
+
+    @property
+    def forces(self):
+        return list(self.available['force'].unique())
+
+    @property
+    def dates(self):
+        return list(self.available['date'].unique())
