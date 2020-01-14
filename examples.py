@@ -34,7 +34,6 @@ def main():
     print(stop_and_search.jobs)
     
     stop_and_search.download()
-
     return
 
 if __name__ == '__main__':
