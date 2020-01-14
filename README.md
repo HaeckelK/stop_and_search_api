@@ -1,10 +1,10 @@
 # stop_and_search_api
 
-stop_and_search_api is a Python module for making API calls to https://data.police.uk/docs/ to download UK Stop and Search data.
+stop_and_search_api is a Python module for making API calls to https://data.police.uk/docs/method/stops-force/ to download UK Stop and Search data.
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+stop_and_search_api is not yet a package and cannot be installed via pip. Instead the repository may be cloned.
 
 ```bash
 git clone https://github.com/HaeckelK/stop_and_search_api.git
