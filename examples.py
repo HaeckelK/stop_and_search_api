@@ -1,4 +1,4 @@
-from police_api import PoliceAPI
+from police_stop_and_search_api.police_api import PoliceAPI
 
 def main():
     # Create an api interface object setting destination folder of downloads
@@ -37,4 +37,5 @@ def main():
     return
 
 if __name__ == '__main__':
-    main()
+    pass
+    #main()

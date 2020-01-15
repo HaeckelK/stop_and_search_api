@@ -13,7 +13,7 @@ git clone https://github.com/HaeckelK/stop_and_search_api.git
 ## Usage
 
 ```python
-from police_api import PoliceAPI
+from police_stop_and_search_api.police_api import PoliceAPI
 
 police = PoliceAPI(savefolder='downloads')
 police.add_job(dates=['2019-10'],
