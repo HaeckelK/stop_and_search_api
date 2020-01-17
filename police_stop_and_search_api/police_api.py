@@ -7,20 +7,17 @@ API docs: https://data.police.uk/docs/
 import requests
 import pandas as pd
 import time
-import os
+import os, sys
 import itertools
 
-URLS = {'availability' : 'https://data.police.uk/api/crimes-street-dates'}
+URLS = {'availability': 'https://data.police.uk/api/crimes-street-dates'}
 
-def basic_request_to_df(url):
-    # TODO : response handling
-    response = requests.get(url)
-    df = pd.DataFrame(response.json())
-    return df
 
 def literal_to_list(x):
-    y = x.strip('[]').replace('"', '').replace(' ', '').replace("'", "").split(',')
+    y = x.strip('[]').replace('"', '')
+    y = y.replace(' ', '').replace("'", "").split(',')
     return y
+
 
 class PoliceAPI():
     """
@@ -29,8 +26,8 @@ class PoliceAPI():
         self.available = self.get_available()
         self.jobs = pd.DataFrame(columns=['date', 'force', 'status'])
         self.default_savefolder = savefolder
-        self.default_delay = delay
-        self.default_job_batch = job_batch
+        self.default_delay = self._clean_input_int(delay, 1)
+        self.default_job_batch = self._clean_input_int(job_batch, 10)
         return
 
     def get_available(self, output_file=None):
@@ -55,10 +52,17 @@ class PoliceAPI():
             dataframe containing 'force', 'date', and 'type'.
         """
         # Default url and basic json to df
-        url = URLS['availability']
-        df = basic_request_to_df(url)
-        #df.to_csv('testing\\available_raw.csv', index=False)
-        #df = pd.read_csv('testing\\available_raw.csv')
+        url = self.url_available()
+        df = self._basic_request_to_df(url)
+
+        # Bad response will return None
+        if df is None:
+            print('No data found from', url)
+            print('Availability data cannot be checked')
+            print('This may result in bad requests sent to API')
+            return df
+            
+        
         # Tidy up headers
         df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
         # Reformat to show one force per line
@@ -66,8 +70,17 @@ class PoliceAPI():
         # Note that these are stop_and_search
         df['type'] = 'stop_and_search'
         if output_file is not None:
+            if os.path.basename(output_file).isspace():
+                output_file = os.path.join(os.path.dirname(output_file),
+                                       'available.csv')    
+                print('output_file had no filename. Replaced with ',
+                      output_file)
+            # TODO : output_file a path? is it csv?
             df.to_csv(output_file, index=False)
         return df
+
+    def url_available(self):
+        return URLS['availability']
 
     def _extract_forces(self, df):
         # Forces are in list format - extract into one force per line
@@ -75,21 +88,28 @@ class PoliceAPI():
         for index, row in df.iterrows():
             date = row['date']
             forces = row['force_list']
-            #forces = literal_to_list(forces)
-            temp_df = pd.DataFrame(forces, columns=['force'])
+            try:
+                temp_df = pd.DataFrame(forces, columns=['force'])
+            except ValueError:
+                forces = literal_to_list(forces)
+                temp_df = pd.DataFrame(forces, columns=['force'])
             temp_df['date'] = date
             new_df = new_df.append(temp_df, sort=False)
         return new_df
 
-    def download(self, delay=None):
+    def download(self, delay=None, save=True):
+        """
+        
+        """
         if delay is None:
             delay = self.default_delay
+        delay = self._clean_input_int(delay, self.default_delay)
         savefolder = self.default_savefolder
         # Create folder if it does not exist
-        if os.path.exists(savefolder) == False:
+        if os.path.exists(savefolder) is False:
             os.mkdir(savefolder)
             print('\nCreated Folder {}\n'.format(savefolder))
-            
+
         df = self.jobs.copy()
         for index, row in df.iterrows():
             date, force = row['date'], row['force']
@@ -118,7 +138,7 @@ class PoliceAPI():
 
         # Check that date and force are valid
         new_jobs['valid_date'] = new_jobs['date'].apply(lambda x: self._valid_date(x))
-        new_jobs['valid_force'] = new_jobs['force'].apply(lambda x: self._valid_force(x))                
+        new_jobs['valid_force'] = new_jobs['force'].apply(lambda x: self._valid_force(x))
 
         new_jobs['status'] = 'not_done'
 
@@ -167,3 +187,29 @@ class PoliceAPI():
     @property
     def dates(self):
         return list(self.available['date'].unique())
+
+    def _clean_input_int(self, value, replacement=None):
+        # Convert input to int if not possible replace with
+        # replacement value
+        try:
+            x = int(value)
+        except (ValueError, TypeError):
+            x = replacement
+        if x <= 0:
+            x = replacement
+        return x
+
+    def _basic_request_to_df(self, url):
+        # TODO : response handling
+        response = self._get_response(url)
+        if response.status_code == 200:
+            print('200 response from', url)
+            df = pd.DataFrame(response.json())
+            return df
+        if response.status_code == 404:
+            print('404 response from', url)        
+            return
+
+    def _get_response(self, url):
+        # Added this function for allow mocking of response in testing
+        return requests.get(url)
