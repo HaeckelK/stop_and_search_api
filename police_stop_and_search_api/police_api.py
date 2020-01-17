@@ -7,7 +7,7 @@ API docs: https://data.police.uk/docs/
 import requests
 import pandas as pd
 import time
-import os, sys
+import os
 import itertools
 
 URLS = {'availability': 'https://data.police.uk/api/crimes-street-dates'}
@@ -24,7 +24,8 @@ class PoliceAPI():
     """
     def __init__(self, delay=1, job_batch=10, savefolder=''):
         self.available = self.get_available()
-        self.jobs = pd.DataFrame(columns=['date', 'force', 'status'])
+        self.jobs = pd.DataFrame(columns=['date', 'force', 'status',
+                                          'valid_force', 'valid_date'])
         self.default_savefolder = savefolder
         self.default_delay = self._clean_input_int(delay, 1)
         self.default_job_batch = self._clean_input_int(job_batch, 10)
@@ -61,8 +62,7 @@ class PoliceAPI():
             print('Availability data cannot be checked')
             print('This may result in bad requests sent to API')
             return df
-            
-        
+
         # Tidy up headers
         df.rename(columns={'stop-and-search': 'force_list'}, inplace=True)
         # Reformat to show one force per line
@@ -72,7 +72,7 @@ class PoliceAPI():
         if output_file is not None:
             if os.path.basename(output_file).isspace():
                 output_file = os.path.join(os.path.dirname(output_file),
-                                       'available.csv')    
+                                           'available.csv')
                 print('output_file had no filename. Replaced with ',
                       output_file)
             # TODO : output_file a path? is it csv?
@@ -99,7 +99,6 @@ class PoliceAPI():
 
     def download(self, delay=None, save=True):
         """
-        
         """
         if delay is None:
             delay = self.default_delay
@@ -126,13 +125,41 @@ class PoliceAPI():
     def add_job(self, dates=None, forces=None):
         new_jobs = pd.DataFrame(columns=['date', 'force'])
 
+        if dates is None and forces is None:
+            print('Note: No dates of forces have been entered')
+            print('By default this will add all available records')
+            print('to download jobs.')
+
+        if dates is None or forces is None:
+            if self.available is None:
+                # IF self.available had a 404 it will be None
+                print('self.available is None no list can be used to')
+                print('auto insert dates / forces.')
+                return
+
         if dates is None:
             dates = list(self.available['date'].unique())
 
         if forces is None:
             forces = list(self.available['force'].unique())
 
+        # dates and forces must be list or None
+        input_type_ok = self._check_dates_forces_input_type(dates, forces)
+
+        if input_type_ok is False:
+            print('forces and dates must be a list type')
+            print('Job not added')
+            return
+
+        dates = self._remove_non_str(dates)
+        forces = self._remove_non_str(forces)
+        if not dates or not forces:
+            print('Input list is now empty no items added to job.')
+            return
+
         if isinstance(dates, list) and isinstance(forces, list):
+            # Convert forces to lowercase
+            forces = list(map(str.lower, forces))
             pairs = set(itertools.product(dates, forces))
             new_jobs = pd.DataFrame(pairs, columns=['date', 'force'])
 
@@ -182,11 +209,19 @@ class PoliceAPI():
 
     @property
     def forces(self):
-        return list(self.available['force'].unique())
+        return self._from_available('force')
 
     @property
     def dates(self):
-        return list(self.available['date'].unique())
+        return self._from_available('date')
+
+    def _from_available(self, field):
+        # return column of available as list
+        # ensure available is not None
+        if self.available is not None:
+            return list(self.available[field].unique())
+        else:
+            return []
 
     def _clean_input_int(self, value, replacement=None):
         # Convert input to int if not possible replace with
@@ -207,9 +242,24 @@ class PoliceAPI():
             df = pd.DataFrame(response.json())
             return df
         if response.status_code == 404:
-            print('404 response from', url)        
+            print('404 response from', url)
             return
 
     def _get_response(self, url):
         # Added this function for allow mocking of response in testing
         return requests.get(url)
+
+    def _check_dates_forces_input_type(self, dates, forces):
+        # If at least one of them is not a list return false
+        x = sum([True for c in (dates, forces) if not isinstance(c, list)])
+        return x == 0
+
+    def _remove_non_str(self, mylist):
+        remove = [f for f in mylist if not isinstance(f, str)]
+        if remove:
+            print('Input forces / dates must be string type.')
+            print('The following have been removed and not added to job.')
+            print(remove)
+        remaining = [f for f in mylist if f not in remove]
+
+        return remaining

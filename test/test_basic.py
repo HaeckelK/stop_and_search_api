@@ -17,11 +17,11 @@ class MockResponse():
         self.headers = None
 
 
-def mock_get_response(self, url):
+def mock_response_404(self, url):
     mr = MockResponse()
     mr.url = url
     mr.status_code = 404
-    print(url)
+    print('mock_response_404 called', url)
     return mr
 
 
@@ -125,6 +125,124 @@ def test_get_available_save(monkeypatch, tmpdir, filename):
 
 
 def test_get_available_status_404(monkeypatch):
-    monkeypatch.setattr(PoliceAPI, "_get_response", mock_get_response)
+    monkeypatch.setattr(PoliceAPI, "_get_response", mock_response_404)
     police = PoliceAPI()
     assert police.available is None
+
+
+@pytest.mark.parametrize('dates, forces, job_len', [
+    (None, None, 1584),
+    (float, None, 0),
+    (None, float, 0),
+    (float, float, 0),
+    (int, str, 0),
+    (['2019-10', '2019-07'], ['cambridgeshire', 'cheshire'], 4),
+    (['2019-10'], ['cambridgeshire', 'cheshire'], 2),
+    (['2019-08', '2019-07'], None, 88),
+    (['2019-08', '2019-07'], ['cheshire'], 2)
+])
+def test_add_job_input_type_major(monkeypatch, dates, forces, job_len):
+    """
+    Check that only input lists are accepted. Checked by counting jobs
+    added to police.jobs dataframe.
+    """
+    # This will give police.available from fixtures
+    monkeypatch.setattr(PoliceAPI, "_basic_request_to_df", mock_request_to_df)
+    police = PoliceAPI()
+
+    police.add_job(dates=dates, forces=forces)
+    df = police.jobs
+    assert len(df) == job_len
+
+
+@pytest.mark.parametrize('dates, forces, job_len', [
+    (['2019-08', '2019-07'], ['cheshire'], 2),
+    (['2019-08', '2019-07'], [float, 'cheshire'], 2),
+    (['2019-08', '2019-07'], [int], 0),
+    (['2019-08', int], ['cheshire'], 1),
+    ([float, '2019-07'], ['cheshire'], 1),
+    ([int], ['cheshire'], 0),
+])
+def test_add_job_input_type_minor(monkeypatch, dates, forces, job_len):
+    """
+    Check that only input strings are accepted for forces / dates.
+    Checked by counting jobs added to police.jobs dataframe.
+    """
+    # This will give police.available from fixtures
+    monkeypatch.setattr(PoliceAPI, "_basic_request_to_df", mock_request_to_df)
+    police = PoliceAPI()
+
+    police.add_job(dates=dates, forces=forces)
+    df = police.jobs
+    assert len(df) == job_len
+
+
+@pytest.mark.parametrize('dates, forces, job_len', [
+    (['2019-08', '2019-07'], ['cheshire'], 2),
+    (['2019-08', '2019-07'], ['cheSHire'], 2),
+    (['2019-08', '2019-07'], ['CHESHIRE'], 2),
+])
+def test_add_job_force_case(monkeypatch, dates, forces, job_len):
+    """
+    Check that function is insensitive to force case.
+    Checked by counting True in valid_force
+    """
+    # This will give police.available from fixtures
+    monkeypatch.setattr(PoliceAPI, "_basic_request_to_df", mock_request_to_df)
+    police = PoliceAPI()
+
+    police.add_job(dates=dates, forces=forces)
+    df = police.jobs
+    assert len(df[df['valid_force'] == True]) == job_len
+
+
+@pytest.mark.parametrize('dates, forces, force_count, date_count',
+[
+    (['2019-08', '2019-07'], ['cheshire'], 2, 2),
+    (['2019-08', '2019-07'], None, 88, 88),
+    (['2019-08', '2019-07'], ['X', 'cheshire'], 2, 4),
+    (['2019-08', '2019-07'], ['X'], 0, 2),
+    (['2019-08', '2019-X7'], ['cheshire'], 2, 1),
+    (['2019-Z7'], ['X'], 0, 0),
+    (None, None, 1584, 1584),
+])
+def test_add_job_valid(monkeypatch, dates, forces, force_count, date_count):
+    """
+    Check that add_job correctly chooses valid for valid_force, valid_date.
+    Checked by counting True in valid_force and valid_count
+    """
+    # This will give police.available from fixtures
+    monkeypatch.setattr(PoliceAPI, "_basic_request_to_df", mock_request_to_df)
+    police = PoliceAPI()
+
+    police.add_job(dates=dates, forces=forces)
+    df = police.jobs
+    assert len(df[df['valid_force'] == True]) == force_count
+    assert len(df[df['valid_date'] == True]) == date_count
+
+@pytest.mark.parametrize('dates, forces, job_len',
+[
+    (['2019-08', '2019-07'], ['cheshire'], 2),
+    (['2019-08', '2019-07'], None, 0),
+    (['2019-08', '2019-07'], ['X', 'cheshire'], 4),
+    (['2019-08', '2019-07'], ['X'], 2),
+    (['2019-08', '2019-X7'], ['cheshire'], 2),
+    (['2019-Z7'], ['X'], 1),
+    (None, None, 0),
+])
+def test_add_job_valid_404(monkeypatch, dates, forces, job_len):
+    """
+    Check that add_job marks valid_force / date as False if available
+    is not returned due to 404.
+    Checked by counting True in valid_force and valid_date and job_len
+    """
+    # This will give police.available is None
+    monkeypatch.setattr(PoliceAPI, "_get_response", mock_response_404)
+    police = PoliceAPI()
+
+    police.add_job(dates=dates, forces=forces)
+    df = police.jobs
+    assert len(df[df['valid_force'] == True]) == 0
+    assert len(df[df['valid_date'] == True]) == 0
+    assert len(df) == job_len
+# test_add_job_available_none
