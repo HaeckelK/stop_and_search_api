@@ -196,8 +196,7 @@ def test_add_job_force_case(monkeypatch, dates, forces, job_len):
     assert len(df[df['valid_force'] == True]) == job_len
 
 
-@pytest.mark.parametrize('dates, forces, force_count, date_count',
-[
+@pytest.mark.parametrize('dates, forces, force_count, date_count', [
     (['2019-08', '2019-07'], ['cheshire'], 2, 2),
     (['2019-08', '2019-07'], None, 88, 88),
     (['2019-08', '2019-07'], ['X', 'cheshire'], 2, 4),
@@ -220,8 +219,8 @@ def test_add_job_valid(monkeypatch, dates, forces, force_count, date_count):
     assert len(df[df['valid_force'] == True]) == force_count
     assert len(df[df['valid_date'] == True]) == date_count
 
-@pytest.mark.parametrize('dates, forces, job_len',
-[
+
+@pytest.mark.parametrize('dates, forces, job_len', [
     (['2019-08', '2019-07'], ['cheshire'], 2),
     (['2019-08', '2019-07'], None, 0),
     (['2019-08', '2019-07'], ['X', 'cheshire'], 4),
